@@ -1,4 +1,5 @@
 const { expect } = require("chai");
+const hre = require("hardhat");
 const { ethers } = require("hardhat");
 const { BigNumber } = require("ethers");
 
@@ -55,15 +56,23 @@ describe("Middle contract", function () {
         let tokenPrice = await idleDAI.tokenPrice();
         let estimateAmount = depositAmount.mul(1e18.toString()).div(BigNumber.from(tokenPrice));
 
-        const balance_user1 = await idleDAI.balanceOf(user1.address);
-        await expect(estimateAmount).to.equal(balance_user1);
+        const balance = await idleDAI.balanceOf(MiddleContract.address);
+        await expect(estimateAmount).to.equal(balance);
     });
 
     it("User1 redeems his idleDAI", async function () {
+        await hre.network.provider.request({
+            method: "evm_increaseTime",
+            params: [60 * 60]
+        }
+        );
+        await hre.network.provider.request({
+            method: "evm_mine",
+        }
+        );
         const balance_user1 = await idleDAI.balanceOf(user1.address);
         await idleDAI.connect(user1).approve(MiddleContract.address, balance_user1);
         await MiddleContract.connect(user1).redeem();
         let wethBalance = await weth.balanceOf(user1.address);
-        console.log("Received weth amount:", wethBalance.toString());
     });
 })
