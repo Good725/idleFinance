@@ -81,9 +81,6 @@ describe("Middle contract", function () {
             let balanceuser1_afterRedeem = await dai.balanceOf(user2.address);
             let wethBalance_afterRedeem = await weth.balanceOf(user1.address);
 
-            let bala = await weth.balanceOf(MiddleContract.address);
-            console.log(bala.toString());
-
             await expect(balanceuser1_afterRedeem).to.equal(balanceuser1_beforeRedeem.add(depositAmount));
             await expect(wethBalance_afterRedeem).to.be.above(wethBalance_beforeRedeem);
         });

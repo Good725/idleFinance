@@ -23,12 +23,12 @@ contract MiddleIDLE is Ownable {
     address public constant WETH = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
 
     uint private constant ONE_18 = 10 ** 18;
-    uint totalDepositedAmount;
-    uint totalMintedAmount;
-    uint totalHarvestedAmount;
-    uint acctotalHarvestedAmount;
-    uint lastUpdatedTime;
-    uint recentHarvestedTime;
+    uint public totalDepositedAmount;
+    uint public totalMintedAmount;
+    uint public totalHarvestedAmount;
+    uint public acctotalHarvestedAmount;
+    uint public lastUpdatedTime;
+    uint public recentHarvestedTime;
     
     mapping(address => uint) public depositedAmountPerUser;
     mapping(address => uint) public mintedAmountPerUser;
@@ -68,7 +68,7 @@ contract MiddleIDLE is Ownable {
     function redeem() public returns (uint redeemedAmount) {
         uint currentIdlePrice = idleDAIYield(IDLE_DAI).tokenPriceWithFee(address(this));
         uint idleAmountEstimate = depositedAmountPerUser[msg.sender] * (ONE_18) / (currentIdlePrice);
-        
+
         require(depositedAmountPerUser[msg.sender] > 0, "No amount for redeem");
 
         if (idleAmountEstimate >= mintedAmountPerUser[msg.sender]) {
@@ -76,8 +76,7 @@ contract MiddleIDLE is Ownable {
         } else {
             redeemedAmount = idleDAIYield(IDLE_DAI).redeemIdleToken(idleAmountEstimate);
         }
-        // redeemedAmount = idleDAIYield(IDLE_DAI).redeemIdleToken(mintedAmountPerUser[msg.sender]);
-
+        
         if (redeemedAmount >= depositedAmountPerUser[msg.sender]) {
             mintedAmountPerUser[msg.sender] = 0;
 
