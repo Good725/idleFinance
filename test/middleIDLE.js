@@ -24,7 +24,7 @@ describe("Middle contract", function () {
     let user2;
     let addrs;
   
-    beforeEach(async function () {
+    before(async function () {
         [owner, user1, user2, ...addrs] = await ethers.getSigners();
         MiddleContract = await ethers.getContractFactory("MiddleIDLE");
         MiddleContract = await MiddleContract.deploy();
@@ -48,31 +48,57 @@ describe("Middle contract", function () {
         await expect(balance_user2).to.equal(daiAmount);
     });
 
-    it("User1 and User2 deposit 50 DAI and get idleDAI tokens, Compare the mited amount with the estimated amount based on tokenPrice", async function () {
-        let depositAmount = BigNumber.from((50 * 10 ** 18).toString());
-        await dai.connect(user1).approve(MiddleContract.address, depositAmount);
-        await MiddleContract.connect(user1).deposit(depositAmount);
+    describe("Deposit, Harvest, Redeem", function () {
+        const depositAmount = BigNumber.from((50 * 10 ** 18).toString());
+        it("User1 and User2 deposit 50 DAI and get idleDAI tokens, Compare the mited amount with the estimated amount based on tokenPrice", async function () {
+            // let depositAmount = BigNumber.from((50 * 10 ** 18).toString());
+            await dai.connect(user1).approve(MiddleContract.address, depositAmount);
+            await MiddleContract.connect(user1).deposit(depositAmount);
+    
+            let tokenPrice = await idleDAI.tokenPrice();
+            let estimateAmount = depositAmount.mul(1e18.toString()).div(BigNumber.from(tokenPrice));
+    
+            const balance = await idleDAI.balanceOf(MiddleContract.address);
+            await expect(estimateAmount).to.equal(balance);
+        });
+    
+        it("Owner harvests, contract balance check", async function () {
+            await MiddleContract.connect(owner).harvest();
+            const balance = await idleDAI.balanceOf(MiddleContract.address);
+    
+            let tokenPrice = await idleDAI.tokenPrice();
+            let estimateAmount = depositAmount.mul(1e18.toString()).div(BigNumber.from(tokenPrice));
+    
+            await expect(estimateAmount).to.equal(balance);
+        });
+    
+        it("User1 redeems", async function () {
+            let balanceuser1_beforeRedeem = await dai.balanceOf(user1.address);
+            let wethBalance_beforeRedeem = await weth.balanceOf(user1.address);
 
-        let tokenPrice = await idleDAI.tokenPrice();
-        let estimateAmount = depositAmount.mul(1e18.toString()).div(BigNumber.from(tokenPrice));
+            await MiddleContract.connect(user1).redeem();
 
-        const balance = await idleDAI.balanceOf(MiddleContract.address);
-        await expect(estimateAmount).to.equal(balance);
-    });
+            let balanceuser1_afterRedeem = await dai.balanceOf(user2.address);
+            let wethBalance_afterRedeem = await weth.balanceOf(user1.address);
 
-    it("User1 redeems his idleDAI", async function () {
-        await hre.network.provider.request({
-            method: "evm_increaseTime",
-            params: [60 * 60]
-        }
-        );
-        await hre.network.provider.request({
-            method: "evm_mine",
-        }
-        );
-        const balance_user1 = await idleDAI.balanceOf(user1.address);
-        await idleDAI.connect(user1).approve(MiddleContract.address, balance_user1);
-        await MiddleContract.connect(user1).redeem();
-        let wethBalance = await weth.balanceOf(user1.address);
-    });
+            let bala = await weth.balanceOf(MiddleContract.address);
+            console.log(bala.toString());
+
+            await expect(balanceuser1_afterRedeem).to.equal(balanceuser1_beforeRedeem.add(depositAmount));
+            await expect(wethBalance_afterRedeem).to.be.above(wethBalance_beforeRedeem);
+        });
+
+        it("Should fail if user1 redeems without any deposited amount", async function () {
+            await expect(MiddleContract.connect(user1).redeem()).to.be.revertedWith("No amount for redeem");
+        });
+
+        it("User1 claims", async function () {
+            let wethBalance_beforeClaim = await weth.balanceOf(user1.address);
+            console.log("weth balance before claim", wethBalance_beforeClaim.toString());
+            await MiddleContract.connect(user1).claim();
+            let wethBalance_afterClaim = await weth.balanceOf(user1.address);
+            console.log("weth balance after claim", wethBalance_afterClaim.toString());
+            await expect(wethBalance_afterClaim).to.be.above(wethBalance_beforeClaim);
+        });
+    });    
 })
